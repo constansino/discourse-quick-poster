@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Discourse Quick Poster / Discourse 快速发帖器 (Bilingual)
 // @namespace    https://aiya.de5.net
-// @version      2.0.0
-// @description  EN/ZH bilingual quick poster for Discourse API. Supports template, memory, and CORS-safe cross-domain requests.
+// @version      2.1.0
+// @description  EN/ZH bilingual quick poster for Discourse API. Supports template, memory, custom hotkey, and CORS-safe cross-domain requests.
 // @author       yezi
 // @match        *://*/*
 // @grant        GM_addStyle
@@ -25,7 +25,8 @@
     lastCategory: 'dqp_last_category',
     lastTags: 'dqp_last_tags',
     bodyTemplate: 'dqp_body_template',
-    lang: 'dqp_lang'
+    lang: 'dqp_lang',
+    hotkey: 'dqp_hotkey'
   };
 
   const get = (k, d = '') => GM_getValue(k, d);
@@ -44,6 +45,8 @@
       apiUser: 'Api Username',
       defaultCategory: '默认分类ID（可空）',
       defaultTags: '默认标签（逗号/空格分隔）',
+      hotkey: '发帖快捷键（例如 Ctrl+Shift+P）',
+      hotkeyHint: '支持组合键：Ctrl / Shift / Alt / Meta + 字母或功能键（如 F2）',
       configHint: '建议使用低权限专用 key，避免管理员 key 外泄。',
       configSaved: '配置已保存',
       configRequired: '请先配置站点/API Key/用户名',
@@ -63,6 +66,7 @@
       errCategory: '分类ID必须是正整数',
       errTimeout: '请求超时',
       errPost: '发帖失败：',
+      errHotkey: '快捷键格式无效，已回退默认 Ctrl+Shift+P',
       langSwitched: '语言已切换：',
       langName: '中文'
     },
@@ -78,6 +82,8 @@
       apiUser: 'API Username',
       defaultCategory: 'Default Category ID (optional)',
       defaultTags: 'Default Tags (comma/space separated)',
+      hotkey: 'Post Hotkey (e.g. Ctrl+Shift+P)',
+      hotkeyHint: 'Supports Ctrl / Shift / Alt / Meta + letter/function key (e.g. F2)',
       configHint: 'Use a low-privileged key whenever possible. Avoid exposing admin keys.',
       configSaved: 'Configuration saved',
       configRequired: 'Please configure site/API key/username first',
@@ -97,6 +103,7 @@
       errCategory: 'Category ID must be a positive integer',
       errTimeout: 'Request timeout',
       errPost: 'Post failed: ',
+      errHotkey: 'Invalid hotkey format, fallback to Ctrl+Shift+P',
       langSwitched: 'Language switched: ',
       langName: 'English'
     }
@@ -150,6 +157,54 @@
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
+  function normalizeHotkey(input) {
+    let s = (input || '').trim();
+    if (!s) s = 'Ctrl+Shift+P';
+    const parts = s.split('+').map(x => x.trim()).filter(Boolean);
+    if (!parts.length) return null;
+
+    const mods = { ctrl: false, shift: false, alt: false, meta: false };
+    let key = '';
+
+    for (const raw of parts) {
+      const p = raw.toLowerCase();
+      if (p === 'ctrl' || p === 'control') mods.ctrl = true;
+      else if (p === 'shift') mods.shift = true;
+      else if (p === 'alt' || p === 'option') mods.alt = true;
+      else if (p === 'meta' || p === 'cmd' || p === 'command' || p === 'win' || p === 'super') mods.meta = true;
+      else if (!key) key = raw;
+      else return null;
+    }
+
+    if (!key) return null;
+    key = key.length === 1 ? key.toUpperCase() : key.toUpperCase();
+
+    return {
+      ctrl: mods.ctrl,
+      shift: mods.shift,
+      alt: mods.alt,
+      meta: mods.meta,
+      key,
+      display: `${mods.ctrl ? 'Ctrl+' : ''}${mods.shift ? 'Shift+' : ''}${mods.alt ? 'Alt+' : ''}${mods.meta ? 'Meta+' : ''}${key}`
+    };
+  }
+
+  function getHotkeyConfig() {
+    const parsed = normalizeHotkey(get(KEY.hotkey, 'Ctrl+Shift+P'));
+    if (!parsed) return normalizeHotkey('Ctrl+Shift+P');
+    return parsed;
+  }
+
+  function isHotkeyMatch(e, hk) {
+    if (!!e.ctrlKey !== hk.ctrl) return false;
+    if (!!e.shiftKey !== hk.shift) return false;
+    if (!!e.altKey !== hk.alt) return false;
+    if (!!e.metaKey !== hk.meta) return false;
+
+    const ek = (e.key || '').toUpperCase();
+    return ek === hk.key;
+  }
+
   function tmRequest(url, method = 'GET', data = null, headers = {}) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
@@ -194,7 +249,8 @@
       apiKey: get(KEY.apiKey, '').trim(),
       apiUser: get(KEY.apiUser, '').trim(),
       defaultCategory: String(get(KEY.defaultCategory, '')).trim(),
-      defaultTags: get(KEY.defaultTags, '').trim()
+      defaultTags: get(KEY.defaultTags, '').trim(),
+      hotkey: get(KEY.hotkey, 'Ctrl+Shift+P').trim() || 'Ctrl+Shift+P'
     };
   }
 
@@ -216,6 +272,7 @@
               <div class="dqp-row"><label>${t('defaultCategory')}</label><input id="dqp_defaultCategory" value="${escHtml(cfg.defaultCategory)}" placeholder="12" /></div>
               <div class="dqp-row"><label>${t('defaultTags')}</label><input id="dqp_defaultTags" value="${escHtml(cfg.defaultTags)}" placeholder="tag1, tag2" /></div>
             </div>
+            <div class="dqp-row"><label>${t('hotkey')}</label><input id="dqp_hotkey" value="${escHtml(cfg.hotkey)}" placeholder="Ctrl+Shift+P" /><div class="dqp-mini">${t('hotkeyHint')}</div></div>
             <div class="dqp-hint">${t('configHint')}</div>
           </div>
           <div class="dqp-ft"><button class="dqp-btn green" id="dqpSaveCfg">${t('saveConfig')}</button></div>
@@ -232,7 +289,17 @@
       set(KEY.apiUser, document.getElementById('dqp_apiUser').value.trim());
       set(KEY.defaultCategory, document.getElementById('dqp_defaultCategory').value.trim());
       set(KEY.defaultTags, document.getElementById('dqp_defaultTags').value.trim());
-      toast(t('configSaved'));
+
+      const hkRaw = document.getElementById('dqp_hotkey').value.trim() || 'Ctrl+Shift+P';
+      const hkParsed = normalizeHotkey(hkRaw);
+      if (!hkParsed) {
+        set(KEY.hotkey, 'Ctrl+Shift+P');
+        toast(t('errHotkey'), false);
+      } else {
+        set(KEY.hotkey, hkParsed.display);
+        toast(t('configSaved'));
+      }
+
       mask.remove();
     };
   }
@@ -356,9 +423,9 @@
   GM_registerMenuCommand(t('menuOpen'), openPostModal);
   GM_registerMenuCommand(t('menuLang'), toggleLang);
 
-  // Hotkey: Ctrl+Shift+P
   window.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') {
+    const hk = getHotkeyConfig();
+    if (isHotkeyMatch(e, hk)) {
       e.preventDefault();
       openPostModal();
     }

@@ -40,7 +40,7 @@ to your Discourse instance using API credentials.
 - Remembers last used category and tags
 - Body template support
 - Bilingual UI (EN / 中文)
-- Hotkey: `Ctrl + Shift + P`
+- Custom hotkey (default: `Ctrl + Shift + P`)
 
 ### Install
 
@@ -57,6 +57,7 @@ to your Discourse instance using API credentials.
    - Site URL
    - API Key
    - API Username
+   - Hotkey (e.g. `Ctrl+Shift+P`, `Ctrl+Alt+K`, `Alt+F2`)
 4. Fill post fields and click **Post**
 5. On success, the topic link opens automatically
 
@@ -103,7 +104,7 @@ to your Discourse instance using API credentials.
 - 自动记忆上次使用的分类和标签
 - 支持正文模板
 - 支持中英双语界面切换
-- 快捷键：`Ctrl + Shift + P`
+- 支持自定义快捷键（默认：`Ctrl + Shift + P`）
 
 ### 安装
 
@@ -120,6 +121,7 @@ to your Discourse instance using API credentials.
    - 站点 URL
    - API Key
    - API 用户名
+   - 快捷键（如 `Ctrl+Shift+P`、`Ctrl+Alt+K`、`Alt+F2`）
 4. 填写帖子信息并点击 **发帖**
 5. 成功后会自动打开帖子链接
 
