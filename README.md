@@ -1,3 +1,5 @@
+<img width="1941" height="1541" alt="PixPin_2026-02-27_11-39-31" src="https://github.com/user-attachments/assets/fa6d9540-2510-46b2-ba2a-609f5cc5588f" />
+
 # Discourse Quick Poster
 
 > Bilingual Tampermonkey userscript for posting to Discourse via API (no UI flow).
